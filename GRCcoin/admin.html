@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Pizza Token</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(to bottom, #bd93f9, #552792); /* Gradiente de violeta */
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start; /* Alineación al principio */
+      height: 100vh;
+      margin: 0;
+      padding: 20px; /* Espacio para el contenido */
+    }
+
+    .container {
+      background-color: rgba(255, 255, 255, 0.8); /* Fondo blanco con transparencia */
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 90%; /* Ancho del contenedor al 90% */
+      max-width: 600px; /* Ancho máximo del contenedor */
+      overflow-y: auto; /* Permite scroll vertical si el contenido es muy alto */
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: #552792; /* Color violeta oscuro para los títulos */
+      margin-bottom: 15px;
+    }
+
+    p {
+      color: #282c34; /* Color gris oscuro para el texto */
+      margin-bottom: 10px;
+    }
+
+    button {
+      background-color: #bd93f9; /* Violeta claro para los botones */
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px 0; /* Margen superior e inferior */
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #ff79c6; /* Rosa al pasar el ratón */
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    input {
+      padding: 8px;
+      margin: 8px 0; /* Margen superior e inferior */
+      border: 1px solid #bd93f9;
+      border-radius: 5px;
+      background-color: #f8f8f8; /* Fondo blanco para los inputs */
+      color: #282c34;
+    }
+
+    hr {
+      border: 1px solid #bd93f9;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>🍕 Admin Pizza Token 🍕</h1>
+    <p>Conectado con la cuenta: <span id="accountAddress">-</span></p>
+    <button onclick="connectWallet()">Conectar Billetera</button>
+    <br>
+
+    <h2>Funciones de administrador</h2>
+
+    <h3>Emitir Tokens</h3>
+    <input type="number" id="mintAmount" placeholder="Cantidad de tokens">
+    <button onclick="mintTokens()" id="mintButton" disabled>Emitir</button>
+
+    <h3>Quemar Tokens</h3>
+    <input type="number" id="burnAmount" placeholder="Cantidad de tokens">
+    <button onclick="burnTokens()" id="burnButton" disabled>Quemar</button>
+
+    <h3>Establecer Precio del Token</h3>
+    <input type="number" id="tokenPrice" placeholder="Nuevo precio del token (ETH)">
+    <button onclick="setTokenPrice()" id="setPriceButton" disabled>Establecer Precio Token</button>
+
+    <h3>Establecer Precio de la Pizza</h3>
+    <input type="number" id="pizzaPrice" placeholder="Nuevo precio de la Pizza (ETH)">
+    <button onclick="setPizzaPrice()" id="setPizzaPriceButton" disabled>Establecer Precio
+      Pizza</button>
+
+    <h3>Pausar Contrato</h3>
+    <button onclick="pauseContract()" id="pauseButton" disabled>Pausar</button>
+
+    <h3>Reanudar Contrato</h3>
+    <button onclick="unpauseContract()" id="unpauseButton" disabled>Reanudar</button>
+
+    <h3>Retirar Fondos</h3>
+    <button onclick="withdrawFunds()" id="withdrawButton" disabled>Retirar</button>
+
+
+    <hr>
+
+    <h2>Comprar Pizza</h2>
+    <p>Precio de la Pizza: <span id="pizzaPriceDisplay">0</span> ETH</p>
+    <button onclick="buyPizza()" id="buyButton" disabled>Comprar Pizza</button>
+  </div>
+
+  <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+  <script>
+    const contractAddress = '0xb1f9875420899be6d9be1fe338f17d129d34003a'; // Dirección del contrato
+    const abi = [
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Approval",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "burn",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "buyPizza",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "mint",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "pause",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "buyer",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "etherSpent",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "tokensReceived",
+				"type": "uint256"
+			}
+		],
+		"name": "PizzaBought",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "newPrice",
+				"type": "uint256"
+			}
+		],
+		"name": "setPizzaPrice",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "newPrice",
+				"type": "uint256"
+			}
+		],
+		"name": "setTokenPrice",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Transfer",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "unpause",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "withdrawFunds",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "admin",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			}
+		],
+		"name": "allowance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "decimals",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "name",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "paused",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "pizzaPrice",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "symbol",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "tokenPrice",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalSupply",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]; 
+
+    let provider;
+    let signer;
+    let contract;
+
+    async function connectWallet() {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          // Solicitar acceso a la cuenta (permite al usuario seleccionar la cuenta)
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          contract = new ethers.Contract(contractAddress, abi, signer);
+
+          // Actualizar la interfaz con la dirección de la cuenta
+          const account = accounts[0];
+          document.getElementById('accountAddress').textContent = account;
+
+          // Verificar si la cuenta conectada es el administrador (usando toLowerCase para comparar)
+          const adminAddress = await contract.admin();
+          console.log("Dirección del administrador:", adminAddress);
+          console.log("Cuenta conectada:", account);
+
+          if (account.toLowerCase() === adminAddress.toLowerCase()) {
+            // Habilitar botones de administrador solo si la cuenta es la del administrador
+            document.getElementById('mintButton').disabled = false;
+            document.getElementById('burnButton').disabled = false;
+            document.getElementById('setPriceButton').disabled = false;
+            document.getElementById('setPizzaPriceButton').disabled = false;
+            document.getElementById('pauseButton').disabled = false;
+            document.getElementById('unpauseButton').disabled = false;
+            document.getElementById('withdrawButton').disabled = false;
+            console.log("Botones de administrador habilitados.");
+          } else {
+            alert("No tienes permisos de administrador para este contrato. La dirección del administrador es: " + adminAddress);
+          }
+
+          // Habilitar botón de comprar pizza (independientemente de si es admin o no)
+          document.getElementById('buyButton').disabled = false;
+
+          // Obtener y mostrar el precio de la pizza
+          await getPizzaPrice();
+
+        } catch (error) {
+          alert("Error al conectar la billetera: " + error.message);
+          console.error(error);
+        }
+      } else {
+        alert("Por favor, instala MetaMask para usar esta aplicación.");
+      }
+    }
+
+    async function mintTokens() {
+      const amount = ethers.utils.parseEther(document.getElementById('mintAmount').value);
+      try {
+        const tx = await contract.mint(amount);
+        await tx.wait();
+        alert("Tokens emitidos con éxito.");
+      } catch (error) {
+        alert("Error al emitir tokens: " + error.message);
+      }
+    }
+
+    async function burnTokens() {
+      const amount = ethers.utils.parseEther(document.getElementById('burnAmount').value);
+      try {
+        const tx = await contract.burn(amount);
+        await tx.wait();
+        alert("Tokens quemados con éxito.");
+      } catch (error) {
+        alert("Error al quemar tokens: " + error.message);
+      }
+    }
+
+    async function setTokenPrice() {
+      const newPrice = ethers.utils.parseEther(document.getElementById('tokenPrice').value);
+      try {
+        const tx = await contract.setTokenPrice(newPrice);
+        await tx.wait();
+        alert("Precio del token actualizado con éxito.");
+      } catch (error) {
+        alert("Error al actualizar el precio del token: " + error.message);
+      }
+    }
+
+    async function setPizzaPrice() {
+      const newPrice = ethers.utils.parseEther(document.getElementById('pizzaPrice').value);
+      try {
+        const tx = await contract.setPizzaPrice(newPrice);
+        await tx.wait();
+        alert("Precio de la Pizza actualizado con éxito.");
+        await getPizzaPrice(); // Actualiza el precio mostrado en la interfaz
+      } catch (error) {
+        alert("Error al actualizar el precio de la Pizza: " + error.message);
+      }
+    }
+
+    async function pauseContract() {
+      try {
+        const tx = await contract.pause();
+        await tx.wait();
+        alert("Contrato pausado con éxito.");
+      } catch (error) {
+        alert("Error al pausar el contrato: " + error.message);
+      }
+    }
+
+    async function unpauseContract() {
+      try {
+        const tx = await contract.unpause();
+        await tx.wait();
+        alert("Contrato reanudado con éxito.");
+      } catch (error) {
+        alert("Error al reanudar el contrato: " + error.message);
+      }
+    }
+
+    async function withdrawFunds() {
+      try {
+        const tx = await contract.withdrawFunds();
+        await tx.wait();
+        alert("Fondos retirados con éxito.");
+      } catch (error) {
+        alert("Error al retirar fondos: " + error.message);
+      }
+    }
+
+    async function getPizzaPrice() {
+      const price = await contract.pizzaPrice();
+      document.getElementById('pizzaPriceDisplay').textContent = ethers.utils.formatEther(price);
+    }
+
+    async function buyPizza() {
+      try {
+        const pizzaPrice = await contract.pizzaPrice();
+        const tx = await contract.buyPizza({ value: pizzaPrice });
+        await tx.wait();
+        alert("Pizza comprada con éxito. ¡Buen provecho!");
+      } catch (error) {
+        alert("Error al comprar Pizza: " + error.message);
+      }
+    }
+
+    // Actualizar el precio de la Pizza al cargar la página
+    window.addEventListener('load', async () => {
+      if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        contract = new ethers.Contract(contractAddress, abi, provider);
+        await getPizzaPrice();
+      }
+    });
+  </script>
+</body>
+
+</html>

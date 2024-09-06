@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Trazabilidad de Productos</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #800080; /* Morado */
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            text-align: left;
+        }
+        input[type="text"],
+        input[type="number"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #800080; /* Morado */
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #663399; /* Morado más oscuro */
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+            text-align: left;
+        }
+        /* Estilos para la tabla */
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Panel de Administración</h1>
+
+        <button id="conectarBilletera">Conectar Billetera</button>
+        <p id="estadoBilletera"></p>
+
+        <h2>Registrar Nuevo Producto</h2>
+        <label for="nombreProducto">Nombre del producto:</label>
+        <input type="text" id="nombreProducto">
+
+        <label for="loteProducto">Lote del producto:</label>
+        <input type="text" id="loteProducto">
+
+        <button id="registrarBtn">Registrar Producto</button>
+
+        <h2>Actualizar Estado del Producto</h2>
+        <label for="idProducto">ID del producto:</label>
+        <input type="number" id="idProducto">
+
+        <label for="ubicacionProducto">Nueva ubicación del producto:</label>
+        <input type="text" id="ubicacionProducto">
+
+        <button id="actualizarEstadoBtn">Actualizar Estado</button>
+
+        <h2>Información del Producto</h2>
+        <label for="buscarIdProducto">Buscar por ID:</label>
+        <input type="number" id="buscarIdProducto">
+        <button id="obtenerInfoBtn">Obtener Información</button>
+
+        <div id="productoInfo">
+            </div>
+
+        <h2>Lista de Productos</h2>
+        <table id="tablaProductos">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Lote</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Aquí se cargarán los productos -->
+            </tbody>
+        </table>
+
+        <pre id="output"></pre>
+    </div>
+
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <script>
+        const addressContrato = '0x02DfdDe1b4B98Da65590f0c6AAC94dAdA707f0aA';
+        const abiContrato = [
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_idProducto",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "_ubicacion",
+                        "type": "string"
+                    }
+                ],
+                "name": "actualizarEstado",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_idProducto",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "_lote",
+                        "type": "string"
+                    }
+                ],
+                "name": "agregarLote",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "_nombre",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "_lote",
+                        "type": "string"
+                    }
+                ],
+                "name": "registrarProducto",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "contadorProductos",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_idProducto",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "obtenerHistorial",
+                "outputs": [
+                    {
+                        "components": [
+                            {
+                                "internalType": "string",
+                                "name": "ubicacion",
+                                "type": "string"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "marcaTiempo",
+                                "type": "uint256"
+                            }
+                        ],
+                        "internalType": "struct Trazabilidad.Estado[]",
+                        "name": "",
+                        "type": "tuple[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "obtenerListaProductos",
+                "outputs": [
+                    {
+                        "internalType": "string[]",
+                        "name": "",
+                        "type": "string[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "productos",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "nombre",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "lote",
+                        "type": "string"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_idProducto",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "verificarOriginalidad",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        let contrato;
+        let cuenta;
+
+        // Función para conectar la billetera
+        const conectarBilletera = async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    cuenta = await provider.getSigner().getAddress();
+                    contrato = new ethers.Contract(addressContrato, abiContrato, provider.getSigner());
+                    document.getElementById('estadoBilletera').textContent = `Conectado con la cuenta: ${cuenta}`;
+                } catch (error) {
+                    mostrarError(error);
+                }
+            } else {
+                mostrarError('Instale MetaMask para usar este dapp.');
+            }
+        };
+
+        // Función para registrar un producto
+        const registrarProducto = async () => {
+            const nombre = document.getElementById('nombreProducto').value;
+            const lote = document.getElementById('loteProducto').value;
+            try {
+                await contrato.registrarProducto(nombre, lote);
+                mostrarMensaje('Producto registrado correctamente.');
+                cargarListaProductos(); // Actualizar la lista después de registrar
+            } catch (error) {
+                mostrarError(error);
+            }
+        };
+
+        // Función para actualizar el estado de un producto
+        const actualizarEstado = async () => {
+            const idProducto = document.getElementById('idProducto').value;
+            const ubicacion = document.getElementById('ubicacionProducto').value;
+            try {
+                await contrato.actualizarEstado(idProducto, ubicacion);
+                mostrarMensaje('Estado actualizado correctamente.');
+            } catch (error) {
+                mostrarError(error);
+            }
+        };
+
+        // Función para obtener información de un producto
+        const obtenerInfoProducto = async () => {
+            const idProducto = document.getElementById('buscarIdProducto').value;
+            try {
+                const producto = await contrato.productos(idProducto);
+                const nombre = producto.nombre;
+                const lote = producto.lote;
+                const historial = await contrato.obtenerHistorial(idProducto);
+                let historialFormateado = historial.map((estado, index) => 
+                    `Movimiento ${index + 1}:\n  Ubicación: ${estado.ubicacion}\n  Marca de Tiempo: ${new Date(estado.marcaTiempo * 1000).toLocaleString()}\n`
+                ).join('\n');
+                document.getElementById('productoInfo').innerHTML = `
+                    <h2>Información del Producto ${idProducto}</h2>
+                    <p><strong>Nombre:</strong> ${nombre}</p>
+                    <p><strong>Lote:</strong> ${lote}</p>
+                    <h3>Historial de Ubicaciones:</h3>
+                    <pre>${historialFormateado}</pre>
+                `;
+            } catch (error) {
+                mostrarError(`Error al obtener información del producto: ${error.message}`);
+            }
+        };
+
+        // Función para cargar la lista de productos en la tabla
+        const cargarListaProductos = async () => {
+            try {
+                const contadorProductos = await contrato.contadorProductos();
+                const tablaProductos = document.getElementById('tablaProductos').getElementsByTagName('tbody')[0];
+                tablaProductos.innerHTML = ''; // Limpiar la tabla antes de cargar
+                for (let i = 1; i <= contadorProductos; i++) {
+                    const producto = await contrato.productos(i);
+                    const nuevaFila = tablaProductos.insertRow();
+                    nuevaFila.insertCell().textContent = i;
+                    nuevaFila.insertCell().textContent = producto.nombre;
+                    nuevaFila.insertCell().textContent = producto.lote;
+                }
+            } catch (error) {
+                mostrarError(`Error al cargar la lista de productos: ${error.message}`);
+            }
+        };
+
+        // Mostrar mensajes
+        const mostrarMensaje = (mensaje) => {
+            document.getElementById('output').textContent = mensaje;
+        };
+
+        // Mostrar errores
+        const mostrarError = (error) => {
+            console.error(error);
+            document.getElementById('output').textContent = `Error: ${error.message}`;
+        };
+
+        // Event listeners para los botones
+        document.getElementById('conectarBilletera').addEventListener('click', conectarBilletera);
+        document.getElementById('registrarBtn').addEventListener('click', registrarProducto);
+        document.getElementById('actualizarEstadoBtn').addEventListener('click', actualizarEstado);
+        document.getElementById('obtenerInfoBtn').addEventListener('click', obtenerInfoProducto);
+
+        // Cargar la lista de productos al cargar la página
+        window.onload = cargarListaProductos;
+    </script>
+</body>
+</html>

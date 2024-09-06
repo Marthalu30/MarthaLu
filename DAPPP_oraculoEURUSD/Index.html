@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Precio EUR/USD</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0fff0; /* Verde claro */
+      font-family: sans-serif;
+    }
+
+    .container {
+      background-color: white;
+      padding: 40px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    button {
+      background-color: #4CAF50; /* Verde */
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 15px;
+      font-size: 18px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #45a049; /* Verde más oscuro al pasar el mouse */
+    }
+
+    button:disabled {
+      background-color: #cccccc; /* Gris claro cuando está deshabilitado */
+      cursor: not-allowed;
+    }
+
+    #precio {
+      font-size: 36px;
+      margin-top: 20px;
+      color: #333;
+    }
+
+    #timestamp {
+      font-size: 16px;
+      color: #555;
+      margin-top: 10px;
+    }
+
+    .decoracion {
+      font-size: 48px;
+      color: #4CAF50; /* Verde */
+      margin: 0 10px; /* Espacio alrededor de los símbolos */
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Precio <span class="decoracion">€</span> / <span class="decoracion">$</span></h1>
+    <button id="conectarBtn">Conectar Billetera</button>
+    <button id="obtenerPrecioBtn" disabled>Obtener Precio</button>
+    <div id="precio"></div>
+    <div id="timestamp"></div>
+  </div>
+
+  <script src="https://cdn.ethers.org/lib/ethers-5.2.umd.min.js"></script>
+  <script>
+    let provider;
+    let signer;
+    const contractAddress = "0x001540F373C39edc4AE04D411450D94A5f9b0757";
+    const contractABI = [
+      {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [],
+        "name": "obtenerPrecio",
+        "outputs": [
+          {
+            "internalType": "int256",
+            "name": "",
+            "type": "int256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "obtenerTimestamp",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ]; 
+    let contract;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const conectarBtn = document.getElementById("conectarBtn");
+      const obtenerPrecioBtn = document.getElementById("obtenerPrecioBtn");
+
+      if (typeof window.ethereum !== 'undefined') {
+        conectarBtn.addEventListener("click", async () => {
+          try {
+            // Solicitar cambio de red a Sepolia
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x1115d14A', 
+                chainName: 'Sepolia Testnet',
+                nativeCurrency: { name: 'SepoliaETH', symbol: 'ETH', decimals: 18 },
+                rpcUrls: ['https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io']
+              }]
+            });
+
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            contract = new ethers.Contract(contractAddress, contractABI, signer);
+            conectarBtn.disabled = true;
+            obtenerPrecioBtn.disabled = false;
+          } catch (error) {
+            console.error("Error al conectar:", error);
+            alert("Error al conectar la billetera. Asegúrate de tener MetaMask instalado y la red Sepolia seleccionada.");
+          }
+        });
+
+        obtenerPrecioBtn.addEventListener("click", async () => {
+          try {
+            const precio = await contract.obtenerPrecio();
+            const timestamp = await contract.obtenerTimestamp();
+            const fecha = new Date(timestamp * 1000);
+            document.getElementById("precio").textContent = (precio / 10 ** 8).toFixed(8);
+            document.getElementById("timestamp").textContent = "Actualizado: " + fecha.toLocaleString();
+          } catch (error) {
+            console.error("Error al obtener el precio:", error);
+            alert("Error al obtener el precio del contrato.");
+          }
+        });
+      } else {
+        conectarBtn.disabled = true;
+        alert("Instala MetaMask para usar esta aplicación.");
+      }
+    });
+  </script>
+</body>
+</html>

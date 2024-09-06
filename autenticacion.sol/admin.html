@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autenticación con Ethereum - Administración</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f8f8f8;
+            color: black;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1, h2 {
+            color: black; 
+        }
+
+        button {
+            background-color: #ffffcc; /* Amarillo más claro */
+            color: black; 
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #ffff99; /* Amarillo un poco más oscuro al pasar el mouse */
+        }
+
+        #authStatus {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .line-yellow {
+            width: 100%;
+            height: 2px;
+            background-color: #ffffcc; /* Amarillo más claro */
+            margin: 20px 0;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+
+        /* Estilos adicionales para la sección de administración */
+        #adminSection {
+            margin-top: 30px;
+            display: none; /* Ocultar inicialmente */
+        }
+
+        #adminSection label {
+            display: block;
+            margin-bottom: 5px;
+            color: black; 
+        }
+
+        #adminSection input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Autenticación con Ethereum - Administración</h1>
+
+        <div class="line-yellow"></div>
+
+        <button id="connectButton">Conectar Billetera</button>
+        <p id="authStatus"></p>
+
+        <div class="line-yellow"></div>
+
+        <div id="adminSection">
+            <h2>Administración (Solo Propietario)</h2>
+            <label for="userAddress">Dirección del Usuario:</label>
+            <input type="text" id="userAddress" placeholder="Dirección Ethereum del usuario">
+
+            <button id="authorizeButton">Autorizar Usuario</button>
+            <button id="deauthorizeButton">Desautorizar Usuario</button>
+            <p class="error" id="adminError"></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.3/dist/web3.min.js"></script>
+    <script>
+        const contractAddress = '0x2F118Bbe89cA09a94EB83986EbBc4b532d9c1f0E';
+        const abi = [
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "authError",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getNonce",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "isAuthorized",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes",
+				"name": "signature",
+				"type": "bytes"
+			}
+		],
+		"name": "login",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "logout",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+];
+
+        let web3;
+        let contract;
+        let accounts; 
+
+        const connectButton = document.getElementById('connectButton');
+        const authStatusDiv = document.getElementById('authStatus');
+        const authorizeButton = document.getElementById('authorizeButton');
+        const deauthorizeButton = document.getElementById('deauthorizeButton');
+        const adminErrorDiv = document.getElementById('adminError');
+        const userAddressInput = document.getElementById('userAddress');
+
+        window.addEventListener('load', async () => { // Esperar a que la página cargue
+            if (typeof window.ethereum !== 'undefined') {
+                web3 = new Web3(window.ethereum); 
+                try {
+                    // Solicitar cuentas (esto abre MetaMask)
+                    accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    authStatusDiv.textContent = 'Conectado como: ' + accounts[0];
+
+                    // Verificar red y conectar al contrato 
+                    await checkNetworkAndConnectContract(); 
+                } catch (error) {
+                    console.error("Error al conectar a MetaMask:", error);
+                    authStatusDiv.textContent = "Error al conectar a MetaMask.";
+                }
+            } else {
+                authStatusDiv.textContent = 'MetaMask no detectado. Instala MetaMask.';
+            }
+        });
+
+        connectButton.addEventListener('click', async () => { 
+            if (web3) {
+                try {
+                    accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    authStatusDiv.textContent = 'Conectado como: ' + accounts[0];
+
+                    await checkNetworkAndConnectContract();
+                } catch (error) {
+                    console.error("Error al conectar:", error);
+                    authStatusDiv.textContent = "Error al conectar a MetaMask.";
+                }
+            } else {
+                authStatusDiv.textContent = 'MetaMask no detectado. Instala MetaMask.';
+            }
+        });
+
+        async function checkNetworkAndConnectContract() {
+            try {
+                const networkId = await web3.eth.net.getId();
+                if (networkId !== 11155111) {
+                    alert("Cambia tu red a Sepolia en MetaMask.");
+                    return;
+                }
+
+                contract = new web3.eth.Contract(abi, contractAddress); 
+
+                const ownerAddress = await contract.methods.owner().call();
+                if (accounts[0].toLowerCase() === ownerAddress.toLowerCase()) {
+                    document.getElementById('adminSection').style.display = 'block';
+                } else {
+                    adminErrorDiv.textContent = "No tienes permiso para administrar.";
+                }
+
+            } catch (error) {
+                console.error("Error al verificar la red o conectar al contrato:", error);
+                adminErrorDiv.textContent = "Error al conectar al contrato.";
+            }
+        }
+
+        authorizeButton.addEventListener('click', async () => {
+            adminErrorDiv.textContent = "";
+            try {
+                const userAddress = userAddressInput.value;
+                await contract.methods.authorizeUser(userAddress).send({ from: accounts[0] });
+                adminErrorDiv.textContent = "Usuario autorizado con éxito.";
+            } catch (error) {
+                console.error('Error al autorizar:', error);
+                adminErrorDiv.textContent = "Error al autorizar.";
+            }
+        });
+
+        deauthorizeButton.addEventListener('click', async () => {
+            adminErrorDiv.textContent = "";
+            try {
+                const userAddress = userAddressInput.value;
+                await contract.methods.deauthorizeUser(userAddress).send({ from: accounts[0] });
+                adminErrorDiv.textContent = "Usuario desautorizado con éxito.";
+            } catch (error) {
+                console.error('Error al desautorizar:', error);
+                adminErrorDiv.textContent = "Error al desautorizar.";
+            }
+        });
+    </script>
+</body>
+</html>

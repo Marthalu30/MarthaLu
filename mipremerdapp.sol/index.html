@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Almacenamiento de Texto en Blockchain</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f4f4f4;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    h1 {
+      color: #4CAF50; 
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    #texto {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Almacenamiento de Texto en Blockchain</h1>
+
+    <button id="conectarBilletera">Conectar Billetera</button>
+    <p id="estadoBilletera"></p>
+
+    <input type="text" id="nuevoTexto" placeholder="Ingrese el texto">
+
+    <button id="almacenarBtn">Almacenar Texto</button>
+    <button id="actualizarBtn">Actualizar Texto</button>
+    <button id="consultarBtn">Consultar Texto</button>
+
+    <p id="texto"></p>
+  </div>
+
+  <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+  <script>
+    const addressContrato = '0x7379988922a593739773c2522A00C38D61caC01d';
+    const abiContrato = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "nuevoTexto",
+				"type": "string"
+			}
+		],
+		"name": "actualizarTexto",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "nuevoTexto",
+				"type": "string"
+			}
+		],
+		"name": "almacenarTexto",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "consultarTexto",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "propietario",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+    let contrato;
+    let cuenta;
+
+    const conectarBilletera = async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          cuenta = await provider.getSigner().getAddress();
+          contrato = new ethers.Contract(addressContrato, abiContrato, provider.getSigner());
+          document.getElementById('estadoBilletera').textContent = `Conectado con la cuenta: ${cuenta}`;
+        } catch (error) {
+          console.error(error);
+          document.getElementById('estadoBilletera').textContent = 'Error al conectar la billetera.';
+        }
+      } else {
+        document.getElementById('estadoBilletera').textContent = 'Instale MetaMask para usar este dapp.';
+      }
+    };
+
+    const almacenarTexto = async () => {
+      const nuevoTexto = document.getElementById('nuevoTexto').value;
+      try {
+        await contrato.almacenarTexto(nuevoTexto);
+        document.getElementById('texto').textContent = 'Texto almacenado correctamente.';
+      } catch (error) {
+        console.error(error);
+        document.getElementById('texto').textContent = 'Error al almacenar el texto.';
+      }
+    };
+
+    const actualizarTexto = async () => {
+      const nuevoTexto = document.getElementById('nuevoTexto').value;
+      try {
+        await contrato.actualizarTexto(nuevoTexto);
+        document.getElementById('texto').textContent = 'Texto actualizado correctamente.';
+      } catch (error) {
+        console.error(error);
+        document.getElementById('texto').textContent = 'Error al actualizar el texto.';
+      }
+    };
+
+    const consultarTexto = async () => {
+      try {
+        const textoAlmacenado = await contrato.consultarTexto();
+        document.getElementById('texto').textContent = `Texto almacenado: ${textoAlmacenado}`;
+      } catch (error) {
+        console.error(error);
+        document.getElementById('texto').textContent = 'Error al consultar el texto.';
+      }
+    };
+
+    document.getElementById('conectarBilletera').addEventListener('click', conectarBilletera);
+    document.getElementById('almacenarBtn').addEventListener('click', almacenarTexto);
+    document.getElementById('actualizarBtn').addEventListener('click', actualizarTexto);
+    document.getElementById('consultarBtn').addEventListener('click', consultarTexto);
+  </script>
+</body>
+</html>
